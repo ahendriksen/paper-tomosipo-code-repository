@@ -15,8 +15,8 @@ det_shape = (1100 // 9, 1440 // 9)
 ###########################################################################
 #            Define projection geometry with tilt and rotation            #
 ###########################################################################
-tilt_angles = np.linspace(0, np.pi / 4, num_tilt)
-rotation_angles = np.linspace(0, 2 * np.pi, num_rotation, endpoint=False)
+tilt_angles = -np.linspace(0, np.pi / 4, num_tilt)
+rotation_angles = -np.linspace(0, 2 * np.pi, num_rotation, endpoint=False)
 
 vg = ts.volume(shape=vol_shape).to_vec()
 T_det = ts.translate((0, det_distance, 0))
@@ -47,9 +47,9 @@ Ss = Ss / np.linalg.norm(Ss, axis=1, keepdims=True)
 
 # The G vectors are defined in the "lab frame". They rotate along a half
 # arc across the detector plane.
-g_angles = np.linspace(-np.pi / 2, np.pi / 2, 8, endpoint=False)
+g_angles = np.linspace(0, -np.pi, 8, endpoint=False)
 R_G = ts.rotate(pos=0, axis=(0, 1, 0), angles=g_angles)
-Gs = R_G.transform_vec((1, 0, 0))
+Gs = R_G.transform_vec((-1, 0, 0))
 
 num_s = len(Ss)                 # 7
 num_g = len(Gs)                 # 8

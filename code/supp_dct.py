@@ -46,7 +46,7 @@ def diffracted_pg(pg_static, plane_normal, R):
     # 3. Create a new vector geometry with dynamic ray direction
     return ts.parallel_vec(
         shape=pg_static.det_shape,
-        ray_dir=M.transform_vec(pg_static.ray_dir),
+        ray_dir=M.transform_vec(pg_static.ray_dir), # Reflect ray direction
         det_pos=pg_static.det_pos,
         det_v=pg_static.det_v,
         det_u=pg_static.det_u,
@@ -66,11 +66,12 @@ def in_bragg_condition(plane_normal, ray_dir, bragg_angle, epsilon=np.pi/80):
 ###########################################################################
 #                            Rotating geometry                            #
 ###########################################################################
-# Rotation of the crystal
+# Rotation of the rotation stage
 rot_angles = np.linspace(0, 2 * np.pi, num_angles, endpoint=False)
 R = ts.rotate(pos=0, axis=(1, 0, 0), angles=rot_angles)
 
 vg = R * ts.volume(shape=100).to_vec()
+# Create a list of geometries using a list comprehension
 diffracted_pgs = [
     diffracted_pg(pg_static, normal, R) for normal in plane_normals
 ]
@@ -81,7 +82,9 @@ diffracted_pgs = [
 bragg_mask = np.empty((num_orientations, num_angles), dtype=bool)
 
 for i in range(num_orientations):
+    # 1. Rotate the plane normal associated with the lattice orientation
     rotated_normal = R.transform_vec(plane_normals[i])
+    # 2. Determine whether the rotated plane normal is in Bragg condition
     for j in range(num_angles):
         bragg_mask[i, j] = in_bragg_condition(
             rotated_normal[j], incoming_ray_dir, bragg_angle
@@ -91,16 +94,18 @@ for i in range(num_orientations):
 #               Operators and projection and backprojection               #
 ###########################################################################
 
-# Compute an operator per orientation.
+# Compute an operator per orientation
 operators = [
-    ts.operator(vg[mask], pg[mask])
-    for pg, mask in zip(diffracted_pgs, bragg_mask)
+    ts.operator(vg[bragg_mask[i]], diffracted_pgs[i][bragg_mask[i]])
+    for i in range(num_orientations)
 ]
 
 def fp(x):
-    y = np.zeros((num_angles, *det_shape), dtype=np.float32)
-    for x_oriented, A, mask in zip(x, operators, bragg_mask):
-        y[:, mask] += A(x_oriented)
+    y = np.zeros((det_shape[0], num_angles, det_shape[1]), dtype=np.float32)
+    for i in range(num_orientations):
+        mask = bragg_mask[i]
+        A = operators[i]
+        y[:, mask] += A(x[i])
     return y
 
 def bp(y):
